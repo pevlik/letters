@@ -83,6 +83,21 @@ class LetterApp(QWidget):
         data_base = json.load(open(os.path.join(os.getcwd(), 'user_info.json'), encoding='utf-8'))
         if not os.path.isdir(os.path.join(os.getcwd(), 'Письма')):
             os.mkdir(os.path.join(os.getcwd(), 'Письма'))
+
+        max_file_number = 0
+        # Create a valid file path by joining the directory and file name
+        for file in os.listdir(os.path.abspath("D:\Projects\letters\Письма")):
+            if os.path.isfile(os.path.join(os.getcwd(), "Письма", file)):
+                # Изолируем имя файла и его расширение
+                name, extension = os.path.splitext(file)
+                # Убедимся, что имя начинается с числа
+                if name[:3].isdigit():
+                    # Преобразуем первые три символа в номер
+                    file_number = int(name[:3])
+                    # Обновим максимальный номер
+                    if file_number > max_file_number:
+                        max_file_number = file_number
+        letter_number = max_file_number + 1
         
             # Get the selected company and employee
         selected_company_index = self.company_combo.currentIndex()
@@ -96,7 +111,7 @@ class LetterApp(QWidget):
 
 
         data = {
-            "letter_number":(),
+            "letter_number":str(letter_number).zfill(3),
             "ans_letter_number":(),
             "theme":self.theme_text.toPlainText(),
             "company_name": self.company_combo.currentText(),
@@ -110,11 +125,12 @@ class LetterApp(QWidget):
         }
 
         doc.render(data)
-
-        # Create a valid file path by joining the directory and file name
-        file_path = os.path.join(os.getcwd(), "Письма", f'{self.company_combo.currentText()}_{self.employee_combo.currentText()}.docx')
+       
+        file_path = os.path.join(os.getcwd(), "Письма", f'{str(letter_number).zfill(3)} {self.company_combo.currentText()} {self.employee_combo.currentText()}.docx')
 
         doc.save(file_path)
+
+        print("письмо готово")
 
 def main():
     app = QApplication(sys.argv)
