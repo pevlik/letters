@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QApplication, QSpacerItem, QWidget, QVBoxLayout, QLabel, QComboBox, QPushButton, QTextEdit, QPlainTextEdit, QMainWindow, QLineEdit
+from PyQt5.QtWidgets import QApplication, QSpacerItem, QWidget, QVBoxLayout, QLabel, QComboBox, QPushButton, QTextEdit, QPlainTextEdit, QMainWindow, QLineEdit, QMenuBar
 from PyQt5 import QtCore
 import sys
 import json
@@ -53,6 +53,7 @@ class LetterApp(QWidget):
 
         self.generate_button = QPushButton("Сформировать", self)
         self.generate_button.clicked.connect(self.generate_letter)
+
         self.update_button = QPushButton('Обновить', self)
         self.update_button.clicked.connect(self.updateData)
 
@@ -68,9 +69,9 @@ class LetterApp(QWidget):
         layout.addWidget(self.theme_text)
         layout.addWidget(self.body_lable)
         layout.addWidget(self.body_text)
-        layout.addWidget(self.generate_button)
         layout.addWidget(self.update_button)
-        
+        layout.addWidget(self.generate_button)
+
         layout.addSpacerItem(QSpacerItem(0, 5))
         self.setLayout(layout)
 
@@ -89,7 +90,15 @@ class LetterApp(QWidget):
             self.employee_combo.addItems([f"{employee['last_name']} {employee['first_name']} {employee['middle_name']}" for employee in employees])
 
     def updateData(self):
-        pass
+        
+        with open(os.path.join(os.getcwd(), 'user_info.json'), 'r', encoding='utf-8') as file:
+            user_data = json.load(file)
+        
+        self.company_combo.clear()
+        self.employee_combo.clear()
+        self.set_user_data(user_data)
+        editor = EditDatabase(user_data)
+        editor.data_saved.connect(self.updateData)
      
     def generate_letter(self):
         doc = DocxTemplate('template3.docx')
@@ -99,9 +108,9 @@ class LetterApp(QWidget):
 
         max_file_number = 0
         # Create a valid file path by joining the directory and file name
-        for file in os.listdir(os.path.abspath(r"D:/Projects/letters/Письма")):
+        for file in os.listdir(os.path.abspath(r"Письма")):
             if os.path.isfile(os.path.join(os.getcwd(), "Письма", file)):
-                # Изолируем имя файла и его расширение 
+                # Изолируем имя файла и его расширение
                 name, extension = os.path.splitext(file)
                 # Убедимся, что имя начинается с числа
                 if name[:3].isdigit():
@@ -110,7 +119,10 @@ class LetterApp(QWidget):
                     # Обновим максимальный номер
                     if file_number > max_file_number:
                         max_file_number = file_number
-        letter_number = max_file_number + 1
+                        letter_number = max_file_number + 1
+
+        print(letter_number)
+        print(max_file_number)
         
             # Get the selected company and employee
         selected_company_index = self.company_combo.currentIndex()
@@ -147,6 +159,8 @@ class LetterApp(QWidget):
         print("письмо готово")
 
 class EditDatabase(QMainWindow):
+    data_saved = QtCore.pyqtSignal()
+
     def __init__(self, user_data, parent=None):
         super().__init__(parent)
 
@@ -235,16 +249,17 @@ class EditDatabase(QMainWindow):
         else:
             print(f"Company '{company_name}' not found.")
     
-    def delEmployee(self):
-        pass
-    
     def delCompany(self):
+        pass
+
+    def delEmployee(self):
         pass
 
     def saveDatabase(self):
         # Save the changes to the JSON file
         with open("user_info.json", "w", encoding='utf-8') as file:
             json.dump(self.user_data, file, ensure_ascii=False, indent=4)
+        self.data_saved.emit()
         print("Changes saved to the database.")
 
 def main():
