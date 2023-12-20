@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QVBoxLayout, QWidget, QLabel, QComboBox, QTextEdit, QPlainTextEdit, QPushButton, QSpacerItem
+from PyQt5.QtWidgets import QVBoxLayout,  QHBoxLayout, QWidget, QLabel, QComboBox, QTextEdit, QPlainTextEdit, QPushButton, QSpacerItem, QMessageBox, QMenuBar, QAction
 from PyQt5 import QtCore
 from docxtpl import DocxTemplate
 from datetime import datetime as dt
@@ -15,9 +15,20 @@ class LetterApp(QWidget):
 
         self.editor = EditDatabase(self.user_data)
 
+        self.setupMenuBar()
+
+    def setupMenuBar(self):
+        mainMenu = QMenuBar()
+        editMenu = mainMenu.addMenu('Настройки')
+        editDatabaseAction = QAction('Редактировать базу данных', self)
+        editDatabaseAction.triggered.connect(self.open_editor)
+        editMenu.addAction(editDatabaseAction)
+        self.layout().setMenuBar(mainMenu)
+
     def initUI(self):
         
         layout = QVBoxLayout()
+        Hlayout =  QHBoxLayout()
         self.setWindowTitle('Letter Generator')
         self.setMinimumSize(400, 420)
         self.setGeometry(400, 420, 400, 420)
@@ -42,6 +53,7 @@ class LetterApp(QWidget):
 
         self.body_lable = QLabel("Тело письма")
         self.body_text = QPlainTextEdit()
+        self.body_text.setMinimumSize(QtCore.QSize(0, 24))
 
         self.fio_lable = QLabel("Введите своё ФИО")
         self.fio_text = QPlainTextEdit()
@@ -59,9 +71,11 @@ class LetterApp(QWidget):
         self.update_button = QPushButton('Обновить', self)
         self.update_button.clicked.connect(self.updateData)
 
-        self.edit_database_button = QPushButton("Редактировать базу", self)
-        self.edit_database_button.clicked.connect(self.open_editor)
+        self.close_button = QPushButton("Закрыть", self)
+        self.close_button.clicked.connect(self.close)
 
+        # self.edit_database_button = QPushButton("Редактировать базу", self)
+        # self.edit_database_button.clicked.connect(self.open_editor)
 
         layout.addWidget(self.company_label)
         layout.addWidget(self.company_combo)
@@ -75,9 +89,11 @@ class LetterApp(QWidget):
         layout.addWidget(self.theme_text)
         layout.addWidget(self.body_lable)
         layout.addWidget(self.body_text)
-        layout.addWidget(self.update_button)
-        layout.addWidget(self.generate_button)
-        layout.addWidget(self.edit_database_button)
+        Hlayout.addWidget(self.update_button)
+        Hlayout.addWidget(self.generate_button)
+        Hlayout.addWidget(self.close_button)
+        # layout.addWidget(self.edit_database_button)
+        layout.addLayout(Hlayout)         
 
         layout.addSpacerItem(QSpacerItem(0, 5))
         self.setLayout(layout)
@@ -136,9 +152,6 @@ class LetterApp(QWidget):
                     if file_number > max_file_number:
                         max_file_number = file_number
                         letter_number = max_file_number + 1
-
-        print(letter_number)
-        print(max_file_number)
         
             # Get the selected company and employee
         selected_company_index = self.company_combo.currentIndex()
@@ -172,4 +185,4 @@ class LetterApp(QWidget):
 
         doc.save(file_path)
 
-        print("письмо готово")
+        QMessageBox.information(self,"Информация", "письмо готово")
