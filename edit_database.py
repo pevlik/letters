@@ -28,9 +28,13 @@ class EditDatabase(QMainWindow):
         self.del_comp_button.clicked.connect(self.delCompany)
 
         self.employee_label = QLabel('Данные сотрудника:')
-        self.first_name_field = QLineEdit()
+        self.first_name_field = QComboBox()
+        self.first_name_field.setEditable(True)
         self.middle_name_field = QLineEdit()
-        self.last_name_field = QLineEdit()
+        self.last_name_field = QComboBox()
+        self.last_name_field.setEditable(True)
+        self.last_name_field.setObjectName("comboBox")
+        self.last_name_field.currentIndexChanged.connect(self.update_last_name_combo)        
         self.email_field = QLineEdit()
         self.position_field = QLineEdit()
         self.add_employee_button = QPushButton('Добавить сотрудника', self)
@@ -81,6 +85,15 @@ class EditDatabase(QMainWindow):
             user_data = json.load(file)
         for company in user_data['companies']:
             self.company_name_field.addItem(company['company_name'])
+
+    def update_last_name_combo(self):
+        self.last_name_field.clear()
+
+        if self.user_data is not None:
+            selected_company_index = self.company_name_field.currentIndex()
+            employees = self.user_data['companies'][selected_company_index]['employees']
+            
+            self.last_name_field.addItems([f"{employee['last_name']}" for employee in employees])
 
     def addCompany(self):
         company_name = self.company_name_field.currentText()
@@ -163,4 +176,3 @@ class EditDatabase(QMainWindow):
     
     def close(self):
         self.hide()
-

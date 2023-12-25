@@ -1,8 +1,10 @@
-from PyQt5.QtWidgets import QVBoxLayout,  QHBoxLayout, QWidget, QLabel, QComboBox, QTextEdit, QPlainTextEdit, QPushButton, QSpacerItem, QMessageBox, QMenuBar, QAction
+from PyQt5.QtWidgets import QVBoxLayout,  QHBoxLayout, QWidget, QLabel, QComboBox, QTextEdit, QPlainTextEdit, QPushButton, QSpacerItem, QMessageBox, QMenuBar, QAction, QFileDialog
 from PyQt5 import QtCore
 from docxtpl import DocxTemplate
 from datetime import datetime as dt
 from edit_database import EditDatabase
+from coverter import upload_new_base
+import pandas as pd
 import json
 import os
 
@@ -22,7 +24,10 @@ class LetterApp(QWidget):
         editMenu = mainMenu.addMenu('Настройки')
         editDatabaseAction = QAction('Редактировать базу данных', self)
         editDatabaseAction.triggered.connect(self.open_editor)
+        addDatabaseAction = QAction('Загрузить базу данных', self)
+        addDatabaseAction.triggered.connect(upload_new_base)
         editMenu.addAction(editDatabaseAction)
+        editMenu.addAction(addDatabaseAction)
         self.layout().setMenuBar(mainMenu)
 
     def initUI(self):
@@ -101,7 +106,7 @@ class LetterApp(QWidget):
     def open_editor(self):
         self.editor = EditDatabase(self.user_data)
         self.editor.show()  
-
+    
     def set_user_data(self, user_data):
         self.user_data = user_data
         self.company_combo.addItems([company['company_name'] for company in self.user_data['companies']])
@@ -125,13 +130,54 @@ class LetterApp(QWidget):
         self.set_user_data(user_data)
         editor = EditDatabase(user_data)
         editor.data_saved.connect(self.updateData)
-     
+
+    def upload_new_base(self):
+        file_path, _ = QFileDialog.getOpenFileName(None, "выберите файл xlsx", "", "XLSX files (*.xlsx)")
+        # Загрузка данных из файла xlsx
+        df = pd.read_excel(file_path)
+        df = df.rename(columns={"Эл. адрес": "email", "Должность": "position", "Организация":"company_name"})
+        df['email'] = df['email'].fillna('')
+        df[['last_name', 'first_name', 'middle_name']] = df['ФИО'].str.split(' ', expand=True)
+
+        # Преобразование данных в формат json
+        json_data = {
+            "companies": df.groupby('company_name').apply(lambda x: x[['first_name','middle_name','last_name','email', 'position']].to_dict('records')).reset_index().rename(columns={0:'employees'}).to_dict(orient='records')
+        }
+
+        # Чтение существующего файла json
+        with open('user_info.json', 'r', encoding='utf-8') as file:
+            existing_data = json.load(file)
+
+        # Проверка наличия дубликатов перед добавлением новых данных
+        new_json_data = {
+            "companies": df.groupby('company_name').apply(lambda x: x[['email', 'position', 'first_name', 'middle_name', 'last_name']].to_dict('records')).reset_index().rename(columns={0:'employees'}).to_dict(orient='records')
+        }
+
+        # Проверка наличия дубликатов
+        existing_companies = [company['company_name'] for company in existing_data['companies']]
+        new_companies = [company['company_name'] for company in new_json_data['companies']]
+
+        duplicate_companies = set(existing_companies) & set(new_companies)
+
+        if duplicate_companies:
+            print("Обнаружены потенциальные дубликаты. Новые данные содержат дубликаты, которые уже присутствуют в существующем JSON файле.")
+            # Здесь можно выполнить соответствующие действия, например, удалить дубликаты из новых данных
+        else:
+            print("Дубликаты не обнаружены. Новые данные могут быть безопасно добавлены к существующему JSON файлу.")
+
+        # Обновление существующего файла json
+        existing_data["companies"].extend(json_data["companies"])
+
+        # Запись обновленных данных обратно в файл json
+        with open('user_info.json', 'w', encoding='utf-8') as file:
+            json.dump(existing_data, file, ensure_ascii=False, indent=4)
+
     def get_user_data(self):
         with open(('user_info.json'), encoding='utf-8') as file:
             return json.load(file)
 
     def generate_letter(self):
-        doc = DocxTemplate('template3.docx')
+        doc = DocxTemplate('template4.docx')
         if not os.path.isdir(os.path.join(os.getcwd(), 'Письма')):
             os.mkdir(os.path.join(os.getcwd(), 'Письма'))
         
@@ -165,23 +211,31 @@ class LetterApp(QWidget):
 
 
         data = {
-            "letter_number":str(letter_number).zfill(3),
-            "ans_letter_number":(),
-            'year': dt.strftime(dt.now(), '%y'),
-            "theme":self.theme_text.toPlainText(),
-            "company_name": self.company_combo.currentText(),
-            "recipient_fio": self.employee_combo.currentText(),
-            "recipient_position":rec_position,
-            "recipient_email":rec_email,
-            "recipient_io":rec_io,
-            "body":self.body_text.toPlainText(),
-            "position":self.position_text.toPlainText(),
-            "fio":self.fio_text.toPlainText()
+            "let_num":str(letter_number).zfill(3), # Номер текущего письма
+            "ans_let_num":(), # Номер письма на которое отвечают
+            'year': dt.strftime(dt.now(), '%y'), # Год отправки письма
+            'date': dt.strftime(dt.now(), '%d.%m.%Y'), # Дата отправки письма
+            "theme":self.theme_text.toPlainText(), # Тема письма
+            "company_name": self.company_combo.currentText(), # Название компании получателя
+            "rec_fio": self.employee_combo.currentText(), # Фамилия Имя Отчество получателся
+            "rec_position":rec_position, # Должность получателя
+            "rec_email":rec_email, # Электронная почта получателя
+            # "rec_fax":rec_fax, # Факс получателя
+            # "rec_phone":rec_phone, # Телефон получателя
+            # "rec_enother":rec_enother, # Другое
+            "rec_io":rec_io, # Фамилия Имя получателя
+            "body":self.body_text.toPlainText(), # Текст письма
+            "position":self.position_text.toPlainText(), # Должность отправителя
+            "fio":self.fio_text.toPlainText(), # Фамилия Имя Отчество отправителя Щербаков Илья Владимирович
+            # "o_mgr":o_manager, # Фамилия Имя Отчество исполнителя
+            # "o_mgr_phone": o_manager_phone # Телефон исполнителя
         }
 
         doc.render(data)
        
-        file_path = os.path.join(os.getcwd(), "Письма", f'{str(letter_number).zfill(3)} {self.company_combo.currentText()} {self.employee_combo.currentText()}.docx')
+        yeardata = dt.strftime(dt.now(), '%y' )
+
+        file_path = os.path.join(os.getcwd(), "Письма", f'{str(letter_number).zfill(3)}-{yeardata} {self.company_combo.currentText()} {self.employee_combo.currentText()}.docx')
 
         doc.save(file_path)
 
