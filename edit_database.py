@@ -110,8 +110,6 @@ class EditDatabase(QMainWindow):
         else:
             QMessageBox.critical(self, "Ошибка", "Название компании не может быть пустым.")
 
-
-
     def addEmployee(self):
         company_name = self.company_name_field.currentText()
         employee_data = {
@@ -164,7 +162,6 @@ class EditDatabase(QMainWindow):
                 break
         else:
             QMessageBox.information(self, "Информация", f"Компания {company_name} не найдена.")
-
 
     def saveDatabase(self):
         # Save the changes to the JSON file

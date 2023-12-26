@@ -3,7 +3,6 @@ from PyQt5 import QtCore
 from docxtpl import DocxTemplate
 from datetime import datetime as dt
 from edit_database import EditDatabase
-from coverter import upload_new_base
 import pandas as pd
 import json
 import os
@@ -25,7 +24,7 @@ class LetterApp(QWidget):
         editDatabaseAction = QAction('Редактировать базу данных', self)
         editDatabaseAction.triggered.connect(self.open_editor)
         addDatabaseAction = QAction('Загрузить базу данных', self)
-        addDatabaseAction.triggered.connect(upload_new_base)
+        addDatabaseAction.triggered.connect(self.upload_new_base)
         editMenu.addAction(editDatabaseAction)
         editMenu.addAction(addDatabaseAction)
         self.layout().setMenuBar(mainMenu)
