@@ -61,6 +61,7 @@ class LetterApp(QWidget):
 
         self.fio_lable = QLabel("Введите своё ФИО")
         self.fio_text = QPlainTextEdit()
+        self.fio_text.setPlaceholderText("flds")
         self.fio_text.setMinimumSize(0, 24)
         self.fio_text.setMaximumSize(400, 24)
 
@@ -138,38 +139,72 @@ class LetterApp(QWidget):
         df['email'] = df['email'].fillna('')
         df[['last_name', 'first_name', 'middle_name']] = df['ФИО'].str.split(' ', expand=True)
 
-        # Преобразование данных в формат json
-        json_data = {
-            "companies": df.groupby('company_name').apply(lambda x: x[['first_name','middle_name','last_name','email', 'position']].to_dict('records')).reset_index().rename(columns={0:'employees'}).to_dict(orient='records')
-        }
-
         # Чтение существующего файла json
         with open('user_info.json', 'r', encoding='utf-8') as file:
             existing_data = json.load(file)
 
         # Проверка наличия дубликатов перед добавлением новых данных
         new_json_data = {
-            "companies": df.groupby('company_name').apply(lambda x: x[['email', 'position', 'first_name', 'middle_name', 'last_name']].to_dict('records')).reset_index().rename(columns={0:'employees'}).to_dict(orient='records')
+            "companies": df.groupby('company_name').apply(lambda x: x[['first_name','middle_name','last_name','email', 'position']].to_dict('records')).reset_index().rename(columns={0:'employees'}).to_dict(orient='records')
         }
 
-        # Проверка наличия дубликатов
-        existing_companies = [company['company_name'] for company in existing_data['companies']]
-        new_companies = [company['company_name'] for company in new_json_data['companies']]
+        existing_companies = {
+            company['company_name']: {
+            'employees': company['employees']
+            } 
+            for company in existing_data['companies']
+        }
 
-        duplicate_companies = set(existing_companies) & set(new_companies)
+        for new_company in new_json_data['companies']:
+            company_name = new_company['company_name']
 
-        if duplicate_companies:
-            print("Обнаружены потенциальные дубликаты. Новые данные содержат дубликаты, которые уже присутствуют в существующем JSON файле.")
-            # Здесь можно выполнить соответствующие действия, например, удалить дубликаты из новых данных
-        else:
-            print("Дубликаты не обнаружены. Новые данные могут быть безопасно добавлены к существующему JSON файлу.")
+            if company_name in existing_companies:
+            # Компания уже есть
+                existing_company = existing_companies[company_name]
 
-        # Обновление существующего файла json
-        existing_data["companies"].extend(json_data["companies"])
+            for employee in new_company['employees']:
+                # Проверяем каждого сотрудника 
+                exists = any(all(d == e for d, e in employee.items()) 
+                            for d in existing_company['employees'])
 
-        # Запись обновленных данных обратно в файл json
+                if not exists:
+                # Сотрудник не дублируется, добавляем
+                    existing_company['employees'].append(employee)
+
+            else:
+            # Новая компания, добавляем полностью  
+                existing_data["companies"].append(new_company)
+
+        # Запись обновленных данных
         with open('user_info.json', 'w', encoding='utf-8') as file:
             json.dump(existing_data, file, ensure_ascii=False, indent=4)
+            
+        self.updateData()
+        # # Проверка наличия дубликатов
+        # existing_companies = [company['company_name'] for company in existing_data['companies']]  
+        # new_companies = [company['company_name'] for company in new_json_data['companies']]
+
+        # duplicate_companies = set(existing_companies) & set(new_companies)
+
+        # if duplicate_companies:
+        #     print("Обнаружены дубликаты")
+        #     # Обновление данных без дубликатов
+        #     for new_company in new_json_data['companies']:
+        #         if new_company['company_name'] not in existing_companies:
+        #             existing_data["companies"].append(new_company)
+        # else:
+        #     # Обновление данных без дубликатов
+        #     for new_company in new_json_data['companies']:
+        #         if new_company['company_name'] not in existing_companies:
+        #             existing_data["companies"].append(new_company)
+                    
+        #     print("Дубликаты не обнаружены, обновлены данные")
+        
+        # # Запись обновленных данных   
+        # with open('user_info.json', 'w', encoding='utf-8') as file:
+        #     json.dump(existing_data, file, ensure_ascii=False, indent=4)
+        
+        # self.updateData()
 
     def get_user_data(self):
         with open(('user_info.json'), encoding='utf-8') as file:
